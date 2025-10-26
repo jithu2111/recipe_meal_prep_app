@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/connectivity_service.dart';
+import '../services/storage_service.dart';
 
 class OfflineBanner extends StatefulWidget {
   final Widget child;
@@ -15,7 +16,9 @@ class OfflineBanner extends StatefulWidget {
 
 class _OfflineBannerState extends State<OfflineBanner> with SingleTickerProviderStateMixin {
   final _connectivityService = ConnectivityService();
+  final _storage = StorageService();
   bool _isOnline = true;
+  int _cachedDataCount = 0;
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
 
@@ -23,6 +26,7 @@ class _OfflineBannerState extends State<OfflineBanner> with SingleTickerProvider
   void initState() {
     super.initState();
     _isOnline = _connectivityService.isOnline;
+    _loadCachedDataCount();
 
     // Setup animation
     _animationController = AnimationController(
@@ -56,6 +60,22 @@ class _OfflineBannerState extends State<OfflineBanner> with SingleTickerProvider
     // Show banner if already offline
     if (!_isOnline) {
       _animationController.forward();
+    }
+  }
+
+  Future<void> _loadCachedDataCount() async {
+    final favorites = await _storage.getFavorites();
+    final pantryItems = await _storage.getPantryItems();
+    final groceryItems = await _storage.getGroceryList();
+    final mealPlans = await _storage.getMealPlans();
+
+    if (mounted) {
+      setState(() {
+        _cachedDataCount = favorites.length +
+                          pantryItems.length +
+                          groceryItems.length +
+                          mealPlans.length;
+      });
     }
   }
 
@@ -96,28 +116,55 @@ class _OfflineBannerState extends State<OfflineBanner> with SingleTickerProvider
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      'You are offline',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'You are offline',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (_cachedDataCount > 0) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            '$_cachedDataCount items available locally',
+                            style: TextStyle(
+                              color: Colors.grey[300],
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange,
+                      color: _cachedDataCount > 0 ? Colors.blue : Colors.orange,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      'Offline Mode',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _cachedDataCount > 0 ? Icons.offline_pin : Icons.cloud_off,
+                          size: 12,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _cachedDataCount > 0 ? 'Data Cached' : 'No Cache',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
