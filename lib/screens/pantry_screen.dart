@@ -185,6 +185,7 @@ class _PantryScreenState extends State<PantryScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddItemDialog,
+        heroTag: 'pantry_fab',
         child: const Icon(Icons.add),
       ),
       body: _pantryItems.isEmpty
