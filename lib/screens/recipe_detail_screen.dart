@@ -27,6 +27,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             pinned: true,
             actions: [
               IconButton(
+                icon: const Icon(Icons.share),
+                color: Colors.white,
+                onPressed: () {
+                  // Share functionality placeholder
+                },
+              ),
+              IconButton(
                 icon: Icon(
                   _isFavorite ? Icons.favorite : Icons.favorite_border,
                   color: _isFavorite ? Colors.red : Colors.white,
