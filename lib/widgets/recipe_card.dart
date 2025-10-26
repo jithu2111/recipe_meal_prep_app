@@ -7,6 +7,7 @@ class RecipeCard extends StatelessWidget {
   final Recipe recipe;
   final VoidCallback? onTap;
   final VoidCallback? onFavorite;
+  final VoidCallback? onShare;
   final bool isFavorite;
   final bool canCookNow;
   final bool showCacheStatus;
@@ -16,6 +17,7 @@ class RecipeCard extends StatelessWidget {
     required this.recipe,
     this.onTap,
     this.onFavorite,
+    this.onShare,
     this.isFavorite = false,
     this.canCookNow = false,
     this.showCacheStatus = true,
@@ -253,7 +255,7 @@ class RecipeCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  // Rating and Dietary Tags
+                  // Rating, Dietary Tags, and Share Button
                   Row(
                     children: [
                       // Rating
@@ -303,6 +305,18 @@ class RecipeCard extends StatelessWidget {
                             ),
                           ),
                         ),
+                      const SizedBox(width: 8),
+                      // Share Button
+                      IconButton(
+                        icon: Icon(
+                          Icons.share,
+                          size: 18,
+                          color: Colors.grey[700],
+                        ),
+                        onPressed: onShare,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
                     ],
                   ),
                 ],

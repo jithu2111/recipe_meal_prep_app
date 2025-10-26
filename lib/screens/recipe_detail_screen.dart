@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
+import '../services/share_service.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -16,16 +17,84 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isFavorite = false;
+  final _shareService = ShareService();
+  final GlobalKey _screenshotKey = GlobalKey();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            actions: [
+      body: RepaintBoundary(
+        key: _screenshotKey,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 300,
+              pinned: true,
+              actions: [
+                // Share button with dropdown menu
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.share, color: Colors.white),
+                  tooltip: 'Share Recipe',
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'share':
+                        _shareService.shareRecipe(widget.recipe);
+                        break;
+                      case 'copy':
+                        _shareService.copyRecipeLink(widget.recipe, context);
+                        break;
+                      case 'image':
+                        _shareService.shareAsImage(_screenshotKey, widget.recipe, context);
+                        break;
+                      case 'more':
+                        _shareService.showShareOptions(context, widget.recipe, _screenshotKey);
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'share',
+                      child: Row(
+                        children: [
+                          Icon(Icons.share_outlined, size: 20),
+                          SizedBox(width: 12),
+                          Text('Share Text'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'copy',
+                      child: Row(
+                        children: [
+                          Icon(Icons.copy, size: 20),
+                          SizedBox(width: 12),
+                          Text('Copy Link'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'image',
+                      child: Row(
+                        children: [
+                          Icon(Icons.image, size: 20),
+                          SizedBox(width: 12),
+                          Text('Share as Image'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'more',
+                      child: Row(
+                        children: [
+                          Icon(Icons.more_horiz, size: 20),
+                          SizedBox(width: 12),
+                          Text('More Options'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               IconButton(
                 icon: Icon(
                   _isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -249,6 +318,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ]),
           ),
         ],
+      ),
       ),
     );
   }
