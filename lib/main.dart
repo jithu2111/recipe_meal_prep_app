@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'utils/app_theme.dart';
 import 'screens/test_recipe_card_screen.dart';
+import 'services/storage_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await StorageService().init();
   runApp(const RecipeMealPrepApp());
 }
 
