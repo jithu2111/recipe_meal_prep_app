@@ -203,6 +203,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddItemDialog,
+        heroTag: 'grocery_fab',
         child: const Icon(Icons.add),
       ),
       body: _groceryItems.isEmpty
