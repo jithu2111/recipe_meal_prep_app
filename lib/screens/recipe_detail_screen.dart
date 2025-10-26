@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
 
-class RecipeDetailScreen extends StatelessWidget {
+class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
 
   const RecipeDetailScreen({
     super.key,
     required this.recipe,
   });
+
+  @override
+  State<RecipeDetailScreen> createState() => _RecipeDetailScreenState();
+}
+
+class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  bool _isFavorite = false;
 
   @override
   Widget build(BuildContext context) {
@@ -18,9 +25,32 @@ class RecipeDetailScreen extends StatelessWidget {
           SliverAppBar(
             expandedHeight: 300,
             pinned: true,
+            actions: [
+              IconButton(
+                icon: Icon(
+                  _isFavorite ? Icons.favorite : Icons.favorite_border,
+                  color: _isFavorite ? Colors.red : Colors.white,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isFavorite = !_isFavorite;
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        _isFavorite
+                            ? 'Added to favorites'
+                            : 'Removed from favorites',
+                      ),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
+            ],
             flexibleSpace: FlexibleSpaceBar(
               background: CachedNetworkImage(
-                imageUrl: recipe.imageUrl,
+                imageUrl: widget.recipe.imageUrl,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   color: Colors.grey[300],
@@ -61,7 +91,7 @@ class RecipeDetailScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    '${recipe.cookingTime} min',
+                                    '${widget.recipe.cookingTime} min',
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -93,7 +123,7 @@ class RecipeDetailScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    recipe.rating.toString(),
+                                    widget.recipe.rating.toString(),
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
@@ -113,7 +143,7 @@ class RecipeDetailScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    if (recipe.nutritionFacts != null) ...[
+                    if (widget.recipe.nutritionFacts != null) ...[
                       const SizedBox(height: 16),
                       Card(
                         child: Padding(
@@ -124,7 +154,7 @@ class RecipeDetailScreen extends StatelessWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  recipe.nutritionFacts!,
+                                  widget.recipe.nutritionFacts!,
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ),
@@ -142,7 +172,7 @@ class RecipeDetailScreen extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 12),
-                    ...recipe.ingredients.map((ingredient) {
+                    ...widget.recipe.ingredients.map((ingredient) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
@@ -176,7 +206,7 @@ class RecipeDetailScreen extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 12),
-                    ...recipe.steps.asMap().entries.map((entry) {
+                    ...widget.recipe.steps.asMap().entries.map((entry) {
                       int index = entry.key;
                       String step = entry.value;
                       return Padding(
