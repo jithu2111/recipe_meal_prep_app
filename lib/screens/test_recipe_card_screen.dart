@@ -45,9 +45,48 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
     });
   }
 
+  List<dynamic> _getFilteredRecipes(List<dynamic> recipes) {
+    return recipes.where((recipe) {
+      // Filter by dietary tags
+      if (_selectedDietaryTags.isNotEmpty) {
+        bool hasDietaryTag = _selectedDietaryTags.any(
+          (tag) => recipe.dietaryTags.contains(tag),
+        );
+        if (!hasDietaryTag) return false;
+      }
+
+      // Filter by cuisine
+      if (_selectedCuisine != null && recipe.cuisine != _selectedCuisine) {
+        return false;
+      }
+
+      // Filter by cooking time
+      if (_selectedCookingTime != null) {
+        int maxTime = 0;
+        if (_selectedCookingTime == 'Under 15 min') {
+          maxTime = 15;
+        } else if (_selectedCookingTime == 'Under 30 min') {
+          maxTime = 30;
+        } else if (_selectedCookingTime == 'Under 45 min') {
+          maxTime = 45;
+        } else if (_selectedCookingTime == 'Under 60 min') {
+          maxTime = 60;
+        } else if (_selectedCookingTime == '60+ min') {
+          return recipe.cookingTime >= 60;
+        }
+        if (maxTime > 0 && recipe.cookingTime > maxTime) {
+          return false;
+        }
+      }
+
+      return true;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final recipes = SampleRecipes.getRecipes();
+    final allRecipes = SampleRecipes.getRecipes();
+    final recipes = _getFilteredRecipes(allRecipes);
 
     return Scaffold(
       appBar: AppBar(
