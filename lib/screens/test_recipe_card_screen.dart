@@ -164,6 +164,7 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
                   child: RecipeCard(
                     recipe: recipe,
                     isFavorite: _favorites.contains(recipe.id),
+                    canCookNow: false, // Will be implemented with pantry integration
                     onTap: () {
                       Navigator.push(
                         context,
