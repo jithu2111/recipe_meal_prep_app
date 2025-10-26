@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
 import '../services/share_service.dart';
+import '../services/storage_service.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final Recipe recipe;
@@ -18,7 +19,46 @@ class RecipeDetailScreen extends StatefulWidget {
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isFavorite = false;
   final _shareService = ShareService();
+  final _storage = StorageService();
   final GlobalKey _screenshotKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavoriteStatus();
+  }
+
+  Future<void> _checkFavoriteStatus() async {
+    final favorites = await _storage.getFavorites();
+    setState(() {
+      _isFavorite = favorites.contains(widget.recipe.id);
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    setState(() {
+      _isFavorite = !_isFavorite;
+    });
+
+    if (_isFavorite) {
+      await _storage.addFavorite(widget.recipe.id);
+    } else {
+      await _storage.removeFavorite(widget.recipe.id);
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _isFavorite
+                ? 'Added to favorites'
+                : 'Removed from favorites',
+          ),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,21 +140,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   _isFavorite ? Icons.favorite : Icons.favorite_border,
                   color: _isFavorite ? Colors.red : Colors.white,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _isFavorite = !_isFavorite;
-                  });
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        _isFavorite
-                            ? 'Added to favorites'
-                            : 'Removed from favorites',
-                      ),
-                      duration: const Duration(seconds: 1),
-                    ),
-                  );
-                },
+                onPressed: _toggleFavorite,
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
