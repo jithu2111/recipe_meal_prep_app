@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../models/grocery_item.dart';
 import '../models/pantry_item.dart';
 import '../utils/constants.dart';
+import '../services/storage_service.dart';
 
 class GroceryListScreen extends StatefulWidget {
   final List<PantryItem> pantryItems;
@@ -19,6 +20,24 @@ class GroceryListScreen extends StatefulWidget {
 class _GroceryListScreenState extends State<GroceryListScreen> {
   final List<GroceryItem> _groceryItems = [];
   final _uuid = const Uuid();
+  final _storage = StorageService();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroceryItems();
+  }
+
+  Future<void> _loadGroceryItems() async {
+    final items = await _storage.getGroceryList();
+    setState(() {
+      _groceryItems.addAll(items);
+    });
+  }
+
+  Future<void> _saveGroceryItems() async {
+    await _storage.saveGroceryList(_groceryItems);
+  }
 
   // Check if an item is already in pantry
   bool _isInPantry(String itemName) {
@@ -93,7 +112,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.isNotEmpty &&
                     quantityController.text.isNotEmpty &&
                     unitController.text.isNotEmpty) {
@@ -121,6 +140,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                   this.setState(() {
                     _groceryItems.add(newItem);
                   });
+                  await _saveGroceryItems();
                   Navigator.pop(context);
                 }
               },
@@ -132,12 +152,13 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     );
   }
 
-  void _togglePurchased(int index) {
+  Future<void> _togglePurchased(int index) async {
     setState(() {
       _groceryItems[index] = _groceryItems[index].copyWith(
         isPurchased: !_groceryItems[index].isPurchased,
       );
     });
+    await _saveGroceryItems();
   }
 
   // Group items by category
@@ -165,10 +186,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
             IconButton(
               icon: const Icon(Icons.delete_sweep),
               tooltip: 'Clear Purchased',
-              onPressed: () {
+              onPressed: () async {
                 setState(() {
                   _groceryItems.removeWhere((item) => item.isPurchased);
                 });
+                await _saveGroceryItems();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Purchased items cleared'),
@@ -256,10 +278,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                           subtitle: Text('${item.quantity} ${item.unit}'),
                           secondary: IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () {
+                            onPressed: () async {
                               setState(() {
                                 _groceryItems.removeAt(itemIndex);
                               });
+                              await _saveGroceryItems();
                             },
                           ),
                         );
