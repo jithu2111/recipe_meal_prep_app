@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../models/pantry_item.dart';
+import '../services/storage_service.dart';
 
 class PantryScreen extends StatefulWidget {
   const PantryScreen({super.key});
@@ -12,7 +13,22 @@ class PantryScreen extends StatefulWidget {
 class _PantryScreenState extends State<PantryScreen> {
   final List<PantryItem> _pantryItems = [];
   final _uuid = const Uuid();
+  final _storage = StorageService();
   static const double _lowStockThreshold = 2.0; // Threshold for low stock alerts
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPantryItems();
+  }
+
+  Future<void> _loadPantryItems() async {
+    final items = await _storage.getPantryItems();
+    setState(() {
+      _pantryItems.addAll(items);
+    });
+  }
+
 
   // Check if item is low in stock
   bool _isLowStock(PantryItem item) {
@@ -102,7 +118,7 @@ class _PantryScreenState extends State<PantryScreen> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameController.text.isNotEmpty &&
                     quantityController.text.isNotEmpty &&
                     unitController.text.isNotEmpty) {
@@ -116,6 +132,7 @@ class _PantryScreenState extends State<PantryScreen> {
                   this.setState(() {
                     _pantryItems.add(newItem);
                   });
+                  await _storage.insertPantryItem(newItem);
                   Navigator.pop(context);
                 }
               },
@@ -275,10 +292,12 @@ class _PantryScreenState extends State<PantryScreen> {
                     ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () {
+                      onPressed: () async {
+                        final itemId = item.id;
                         setState(() {
                           _pantryItems.removeAt(index);
                         });
+                        await _storage.deletePantryItem(itemId);
                       },
                     ),
                   ),

@@ -7,6 +7,7 @@ import 'meal_planner_screen.dart';
 import 'favorites_screen.dart';
 import 'grocery_list_screen.dart';
 import 'pantry_screen.dart';
+import '../services/storage_service.dart';
 
 class TestRecipeCardScreen extends StatefulWidget {
   const TestRecipeCardScreen({super.key});
@@ -21,15 +22,37 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
   String? _selectedCuisine;
   String? _selectedCookingTime;
   bool _showFilters = false;
+  final _storage = StorageService();
 
-  void _toggleFavorite(String recipeId) {
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final favorites = await _storage.getFavorites();
     setState(() {
-      if (_favorites.contains(recipeId)) {
+      _favorites.addAll(favorites);
+    });
+  }
+
+  Future<void> _toggleFavorite(String recipeId) async {
+    final isFavorite = _favorites.contains(recipeId);
+
+    setState(() {
+      if (isFavorite) {
         _favorites.remove(recipeId);
       } else {
         _favorites.add(recipeId);
       }
     });
+
+    if (isFavorite) {
+      await _storage.removeFavorite(recipeId);
+    } else {
+      await _storage.addFavorite(recipeId);
+    }
   }
 
   void _toggleDietaryTag(String tag) {
