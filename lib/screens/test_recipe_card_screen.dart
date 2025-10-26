@@ -3,6 +3,7 @@ import '../data/sample_recipes.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/filter_panel.dart';
 import 'recipe_detail_screen.dart';
+import 'meal_planner_screen.dart';
 
 class TestRecipeCardScreen extends StatefulWidget {
   const TestRecipeCardScreen({super.key});
