@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../models/recipe.dart';
+import '../services/connectivity_service.dart';
 
 class RecipeCard extends StatelessWidget {
   final Recipe recipe;
@@ -8,6 +9,7 @@ class RecipeCard extends StatelessWidget {
   final VoidCallback? onFavorite;
   final bool isFavorite;
   final bool canCookNow;
+  final bool showCacheStatus;
 
   const RecipeCard({
     super.key,
@@ -16,10 +18,14 @@ class RecipeCard extends StatelessWidget {
     this.onFavorite,
     this.isFavorite = false,
     this.canCookNow = false,
+    this.showCacheStatus = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final connectivityService = ConnectivityService();
+    final isOnline = connectivityService.isOnline;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -40,17 +46,45 @@ class RecipeCard extends StatelessWidget {
                     placeholder: (context, url) => Container(
                       height: 180,
                       color: Colors.grey[300],
-                      child: const Center(
-                        child: CircularProgressIndicator(),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            if (!isOnline) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                'Loading from cache...',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
                       height: 180,
                       color: Colors.grey[300],
-                      child: const Icon(
-                        Icons.restaurant,
-                        size: 50,
-                        color: Colors.grey,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            isOnline ? Icons.broken_image : Icons.cloud_off,
+                            size: 50,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            isOnline ? 'Image unavailable' : 'Image not cached',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -139,6 +173,41 @@ class RecipeCard extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                // Offline Available Badge
+                if (!isOnline && showCacheStatus)
+                  Positioned(
+                    bottom: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.blue[700],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.offline_pin,
+                            color: Colors.white,
+                            size: 12,
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Available Offline',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
                           ),

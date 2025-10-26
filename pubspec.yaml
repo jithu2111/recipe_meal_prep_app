@@ -58,6 +58,9 @@ dependencies:
   # UUID for unique IDs
   uuid: ^4.3.3
 
+  # Connectivity
+  connectivity_plus: ^6.0.5
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'utils/app_theme.dart';
 import 'screens/test_recipe_card_screen.dart';
 import 'services/storage_service.dart';
+import 'services/connectivity_service.dart';
+import 'widgets/offline_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await StorageService().init();
+  await ConnectivityService().init();
   runApp(const RecipeMealPrepApp());
 }
 
@@ -20,7 +23,9 @@ class RecipeMealPrepApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
-      home: const TestRecipeCardScreen(),
+      home: const OfflineBanner(
+        child: TestRecipeCardScreen(),
+      ),
     );
   }
 }
