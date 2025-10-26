@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'utils/app_theme.dart';
+import 'screens/test_recipe_card_screen.dart';
 
 void main() {
   runApp(const RecipeMealPrepApp());
@@ -16,8 +17,7 @@ class RecipeMealPrepApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
-
-      home: const PlaceholderScreen(),
+      home: const TestRecipeCardScreen(),
     );
   }
 }
