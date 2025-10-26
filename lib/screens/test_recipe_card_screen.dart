@@ -96,6 +96,18 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const MealPlannerScreen(),
+                ),
+              );
+            },
+            tooltip: 'Meal Planner',
+          ),
+          IconButton(
             icon: Icon(_showFilters ? Icons.filter_alt : Icons.filter_alt_outlined),
             onPressed: () {
               setState(() {
