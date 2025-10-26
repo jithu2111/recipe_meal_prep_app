@@ -38,14 +38,21 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
   }
 
   Future<void> _toggleFavorite(String recipeId) async {
+    final isFavorite = _favorites.contains(recipeId);
+
     setState(() {
-      if (_favorites.contains(recipeId)) {
+      if (isFavorite) {
         _favorites.remove(recipeId);
       } else {
         _favorites.add(recipeId);
       }
     });
-    await _storage.saveFavorites(_favorites);
+
+    if (isFavorite) {
+      await _storage.removeFavorite(recipeId);
+    } else {
+      await _storage.addFavorite(recipeId);
+    }
   }
 
   void _toggleDietaryTag(String tag) {

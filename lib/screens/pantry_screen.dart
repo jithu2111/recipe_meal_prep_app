@@ -29,9 +29,6 @@ class _PantryScreenState extends State<PantryScreen> {
     });
   }
 
-  Future<void> _savePantryItems() async {
-    await _storage.savePantryItems(_pantryItems);
-  }
 
   // Check if item is low in stock
   bool _isLowStock(PantryItem item) {
@@ -135,7 +132,7 @@ class _PantryScreenState extends State<PantryScreen> {
                   this.setState(() {
                     _pantryItems.add(newItem);
                   });
-                  await _savePantryItems();
+                  await _storage.insertPantryItem(newItem);
                   Navigator.pop(context);
                 }
               },
@@ -296,10 +293,11 @@ class _PantryScreenState extends State<PantryScreen> {
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
                       onPressed: () async {
+                        final itemId = item.id;
                         setState(() {
                           _pantryItems.removeAt(index);
                         });
-                        await _savePantryItems();
+                        await _storage.deletePantryItem(itemId);
                       },
                     ),
                   ),

@@ -35,9 +35,6 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     });
   }
 
-  Future<void> _saveGroceryItems() async {
-    await _storage.saveGroceryList(_groceryItems);
-  }
 
   // Check if an item is already in pantry
   bool _isInPantry(String itemName) {
@@ -140,7 +137,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                   this.setState(() {
                     _groceryItems.add(newItem);
                   });
-                  await _saveGroceryItems();
+                  await _storage.insertGroceryItem(newItem);
                   Navigator.pop(context);
                 }
               },
@@ -153,12 +150,15 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }
 
   Future<void> _togglePurchased(int index) async {
+    final updatedItem = _groceryItems[index].copyWith(
+      isPurchased: !_groceryItems[index].isPurchased,
+    );
+
     setState(() {
-      _groceryItems[index] = _groceryItems[index].copyWith(
-        isPurchased: !_groceryItems[index].isPurchased,
-      );
+      _groceryItems[index] = updatedItem;
     });
-    await _saveGroceryItems();
+
+    await _storage.updateGroceryItem(updatedItem);
   }
 
   // Group items by category
@@ -190,7 +190,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                 setState(() {
                   _groceryItems.removeWhere((item) => item.isPurchased);
                 });
-                await _saveGroceryItems();
+                await _storage.deletePurchasedGroceryItems();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Purchased items cleared'),
@@ -279,10 +279,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                           secondary: IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.red),
                             onPressed: () async {
+                              final itemId = item.id;
                               setState(() {
                                 _groceryItems.removeAt(itemIndex);
                               });
-                              await _saveGroceryItems();
+                              await _storage.deleteGroceryItem(itemId);
                             },
                           ),
                         );

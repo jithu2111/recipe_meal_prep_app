@@ -1,87 +1,98 @@
-import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/recipe.dart';
 import '../models/meal_plan.dart';
 import '../models/pantry_item.dart';
 import '../models/grocery_item.dart';
 import '../utils/constants.dart';
+import 'database_helper.dart';
 
 class StorageService {
   static final StorageService _instance = StorageService._internal();
   factory StorageService() => _instance;
   StorageService._internal();
 
+  final _dbHelper = DatabaseHelper();
   SharedPreferences? _prefs;
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    // Initialize database
+    await _dbHelper.database;
   }
 
-  // Favorites
+  // ==================== FAVORITES ====================
+
   Future<Set<String>> getFavorites() async {
-    final favoritesJson = _prefs?.getStringList(Constants.favoritesKey) ?? [];
-    return Set<String>.from(favoritesJson);
+    return await _dbHelper.getFavorites();
   }
 
-  Future<void> saveFavorites(Set<String> favorites) async {
-    await _prefs?.setStringList(
-      Constants.favoritesKey,
-      favorites.toList(),
-    );
+  Future<void> addFavorite(String recipeId) async {
+    await _dbHelper.addFavorite(recipeId);
   }
 
-  // Meal Plans
+  Future<void> removeFavorite(String recipeId) async {
+    await _dbHelper.removeFavorite(recipeId);
+  }
+
+  // ==================== MEAL PLANS ====================
+
   Future<List<MealPlan>> getMealPlans() async {
-    final mealPlansJson = _prefs?.getString(Constants.mealPlansKey);
-    if (mealPlansJson == null || mealPlansJson.isEmpty) {
-      return [];
-    }
-    final List<dynamic> decoded = jsonDecode(mealPlansJson);
-    return decoded.map((json) => MealPlan.fromJson(json)).toList();
+    return await _dbHelper.getMealPlans();
   }
 
-  Future<void> saveMealPlans(List<MealPlan> mealPlans) async {
-    final encoded = jsonEncode(
-      mealPlans.map((plan) => plan.toJson()).toList(),
-    );
-    await _prefs?.setString(Constants.mealPlansKey, encoded);
+  Future<void> insertMealPlan(MealPlan mealPlan) async {
+    await _dbHelper.insertMealPlan(mealPlan);
   }
 
-  // Pantry Items
+  Future<void> deleteMealPlan(String id) async {
+    await _dbHelper.deleteMealPlan(id);
+  }
+
+  Future<void> deleteMealPlanByDateAndType(DateTime date, MealType mealType) async {
+    await _dbHelper.deleteMealPlanByDateAndType(date, mealType);
+  }
+
+  // ==================== PANTRY ITEMS ====================
+
   Future<List<PantryItem>> getPantryItems() async {
-    final pantryJson = _prefs?.getString(Constants.pantryItemsKey);
-    if (pantryJson == null || pantryJson.isEmpty) {
-      return [];
-    }
-    final List<dynamic> decoded = jsonDecode(pantryJson);
-    return decoded.map((json) => PantryItem.fromJson(json)).toList();
+    return await _dbHelper.getPantryItems();
   }
 
-  Future<void> savePantryItems(List<PantryItem> items) async {
-    final encoded = jsonEncode(
-      items.map((item) => item.toJson()).toList(),
-    );
-    await _prefs?.setString(Constants.pantryItemsKey, encoded);
+  Future<void> insertPantryItem(PantryItem item) async {
+    await _dbHelper.insertPantryItem(item);
   }
 
-  // Grocery List
+  Future<void> updatePantryItem(PantryItem item) async {
+    await _dbHelper.updatePantryItem(item);
+  }
+
+  Future<void> deletePantryItem(String id) async {
+    await _dbHelper.deletePantryItem(id);
+  }
+
+  // ==================== GROCERY ITEMS ====================
+
   Future<List<GroceryItem>> getGroceryList() async {
-    final groceryJson = _prefs?.getString(Constants.groceryListKey);
-    if (groceryJson == null || groceryJson.isEmpty) {
-      return [];
-    }
-    final List<dynamic> decoded = jsonDecode(groceryJson);
-    return decoded.map((json) => GroceryItem.fromJson(json)).toList();
+    return await _dbHelper.getGroceryItems();
   }
 
-  Future<void> saveGroceryList(List<GroceryItem> items) async {
-    final encoded = jsonEncode(
-      items.map((item) => item.toJson()).toList(),
-    );
-    await _prefs?.setString(Constants.groceryListKey, encoded);
+  Future<void> insertGroceryItem(GroceryItem item) async {
+    await _dbHelper.insertGroceryItem(item);
   }
 
-  // Theme Mode
+  Future<void> updateGroceryItem(GroceryItem item) async {
+    await _dbHelper.updateGroceryItem(item);
+  }
+
+  Future<void> deleteGroceryItem(String id) async {
+    await _dbHelper.deleteGroceryItem(id);
+  }
+
+  Future<void> deletePurchasedGroceryItems() async {
+    await _dbHelper.deletePurchasedGroceryItems();
+  }
+
+  // ==================== THEME (Still using SharedPreferences) ====================
+
   Future<String?> getThemeMode() async {
     return _prefs?.getString(Constants.themeKey);
   }
@@ -90,8 +101,10 @@ class StorageService {
     await _prefs?.setString(Constants.themeKey, mode);
   }
 
-  // Clear all data
+  // ==================== UTILITY ====================
+
   Future<void> clearAll() async {
+    await _dbHelper.clearAllData();
     await _prefs?.clear();
   }
 }

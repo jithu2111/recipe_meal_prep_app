@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../data/sample_recipes.dart';
 import '../models/recipe.dart';
+import '../models/meal_plan.dart';
+import '../services/storage_service.dart';
 
 class MealPlannerScreen extends StatefulWidget {
   const MealPlannerScreen({super.key});
@@ -12,6 +15,9 @@ class MealPlannerScreen extends StatefulWidget {
 class _MealPlannerScreenState extends State<MealPlannerScreen> {
   final daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   final Map<String, Map<String, Recipe?>> _mealPlan = {};
+  final List<MealPlan> _mealPlans = [];
+  final _storage = StorageService();
+  final _uuid = const Uuid();
 
   @override
   void initState() {
@@ -24,6 +30,68 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
         'Dinner': null,
       };
     }
+    _loadMealPlans();
+  }
+
+  Future<void> _loadMealPlans() async {
+    final savedPlans = await _storage.getMealPlans();
+    final recipes = SampleRecipes.getRecipes();
+
+    setState(() {
+      _mealPlans.clear();
+      _mealPlans.addAll(savedPlans);
+
+      // Reconstruct meal plan from saved data
+      for (var plan in savedPlans) {
+        final recipe = recipes.firstWhere(
+          (r) => r.id == plan.recipeId,
+          orElse: () => recipes.first,
+        );
+        final dayIndex = plan.date.weekday - 1; // 1 = Monday, 7 = Sunday
+        if (dayIndex >= 0 && dayIndex < daysOfWeek.length) {
+          final day = daysOfWeek[dayIndex];
+          final mealType = _getMealTypeString(plan.mealType);
+          _mealPlan[day]![mealType] = recipe;
+        }
+      }
+    });
+  }
+
+
+  String _getMealTypeString(MealType type) {
+    switch (type) {
+      case MealType.breakfast:
+        return 'Breakfast';
+      case MealType.lunch:
+        return 'Lunch';
+      case MealType.dinner:
+        return 'Dinner';
+    }
+  }
+
+  MealType _getMealTypeEnum(String mealType) {
+    switch (mealType) {
+      case 'Breakfast':
+        return MealType.breakfast;
+      case 'Lunch':
+        return MealType.lunch;
+      case 'Dinner':
+        return MealType.dinner;
+      default:
+        return MealType.breakfast;
+    }
+  }
+
+  int _getDayIndex(String day) {
+    return daysOfWeek.indexOf(day);
+  }
+
+  DateTime _getDateForDay(String day) {
+    final now = DateTime.now();
+    final currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
+    final dayIndex = _getDayIndex(day);
+    final difference = dayIndex - (currentWeekday - 1);
+    return now.add(Duration(days: difference));
   }
 
   void _assignRecipe(String day, String mealType) async {
@@ -37,13 +105,47 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
       setState(() {
         _mealPlan[day]![mealType] = selectedRecipe;
       });
+
+      // Create and save meal plan
+      final date = _getDateForDay(day);
+      final mealTypeEnum = _getMealTypeEnum(mealType);
+
+      // Remove existing plan for this day/meal if any
+      await _storage.deleteMealPlanByDateAndType(date, mealTypeEnum);
+      _mealPlans.removeWhere((plan) =>
+          plan.date.day == date.day &&
+          plan.date.month == date.month &&
+          plan.date.year == date.year &&
+          plan.mealType == mealTypeEnum);
+
+      // Add new plan
+      final newPlan = MealPlan(
+        id: _uuid.v4(),
+        date: date,
+        mealType: mealTypeEnum,
+        recipeId: selectedRecipe.id,
+      );
+      _mealPlans.add(newPlan);
+
+      await _storage.insertMealPlan(newPlan);
     }
   }
 
-  void _removeRecipe(String day, String mealType) {
+  void _removeRecipe(String day, String mealType) async {
     setState(() {
       _mealPlan[day]![mealType] = null;
     });
+
+    // Remove from saved meal plans
+    final date = _getDateForDay(day);
+    final mealTypeEnum = _getMealTypeEnum(mealType);
+
+    await _storage.deleteMealPlanByDateAndType(date, mealTypeEnum);
+    _mealPlans.removeWhere((plan) =>
+        plan.date.day == date.day &&
+        plan.date.month == date.month &&
+        plan.date.year == date.year &&
+        plan.mealType == mealTypeEnum);
   }
 
   @override
