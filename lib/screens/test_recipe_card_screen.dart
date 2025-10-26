@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../data/sample_recipes.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/filter_panel.dart';
+import 'recipe_detail_screen.dart';
 
 class TestRecipeCardScreen extends StatefulWidget {
   const TestRecipeCardScreen({super.key});
@@ -138,10 +139,10 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
                     recipe: recipe,
                     isFavorite: _favorites.contains(recipe.id),
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Tapped: ${recipe.title}'),
-                          duration: const Duration(seconds: 1),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RecipeDetailScreen(recipe: recipe),
                         ),
                       );
                     },
