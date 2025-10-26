@@ -5,6 +5,8 @@ import '../widgets/filter_panel.dart';
 import 'recipe_detail_screen.dart';
 import 'meal_planner_screen.dart';
 import 'favorites_screen.dart';
+import 'grocery_list_screen.dart';
+import 'pantry_screen.dart';
 
 class TestRecipeCardScreen extends StatefulWidget {
   const TestRecipeCardScreen({super.key});
@@ -96,6 +98,30 @@ class _TestRecipeCardScreenState extends State<TestRecipeCardScreen> {
         title: const Text('Recipe Cards Test'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const GroceryListScreen(),
+                ),
+              );
+            },
+            tooltip: 'Grocery List',
+          ),
+          IconButton(
+            icon: const Icon(Icons.kitchen),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PantryScreen(),
+                ),
+              );
+            },
+            tooltip: 'Pantry',
+          ),
           IconButton(
             icon: const Icon(Icons.favorite),
             onPressed: () {
