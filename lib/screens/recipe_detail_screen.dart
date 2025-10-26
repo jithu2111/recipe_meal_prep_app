@@ -146,12 +146,15 @@ class RecipeDetailScreen extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            const Icon(
-                              Icons.circle,
-                              size: 8,
-                              color: Colors.grey,
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6),
+                              child: Icon(
+                                Icons.circle,
+                                size: 8,
+                                color: Colors.grey,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
