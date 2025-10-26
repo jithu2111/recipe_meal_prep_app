@@ -17,65 +17,101 @@ class _PantryScreenState extends State<PantryScreen> {
     final nameController = TextEditingController();
     final quantityController = TextEditingController();
     final unitController = TextEditingController();
+    DateTime? expirationDate;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Ingredient'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Ingredient Name',
-                hintText: 'e.g., Eggs, Milk, Rice',
-              ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Add Ingredient'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Ingredient Name',
+                    hintText: 'e.g., Eggs, Milk, Rice',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: quantityController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Quantity',
+                    hintText: 'e.g., 2, 1.5',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: unitController,
+                  decoration: const InputDecoration(
+                    labelText: 'Unit',
+                    hintText: 'e.g., kg, L, pieces',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        expirationDate == null
+                            ? 'No expiration date'
+                            : 'Expires: ${expirationDate!.day}/${expirationDate!.month}/${expirationDate!.year}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: DateTime.now(),
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(const Duration(days: 365)),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            expirationDate = picked;
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.calendar_today, size: 18),
+                      label: const Text('Pick Date'),
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: quantityController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Quantity',
-                hintText: 'e.g., 2, 1.5',
-              ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: unitController,
-              decoration: const InputDecoration(
-                labelText: 'Unit',
-                hintText: 'e.g., kg, L, pieces',
-              ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty &&
+                    quantityController.text.isNotEmpty &&
+                    unitController.text.isNotEmpty) {
+                  final newItem = PantryItem(
+                    id: _uuid.v4(),
+                    name: nameController.text,
+                    quantity: double.tryParse(quantityController.text) ?? 0,
+                    unit: unitController.text,
+                    expirationDate: expirationDate,
+                  );
+                  this.setState(() {
+                    _pantryItems.add(newItem);
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Add'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  quantityController.text.isNotEmpty &&
-                  unitController.text.isNotEmpty) {
-                final newItem = PantryItem(
-                  id: _uuid.v4(),
-                  name: nameController.text,
-                  quantity: double.tryParse(quantityController.text) ?? 0,
-                  unit: unitController.text,
-                );
-                setState(() {
-                  _pantryItems.add(newItem);
-                });
-                Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
   }
@@ -136,7 +172,22 @@ class _PantryScreenState extends State<PantryScreen> {
                       ),
                     ),
                     title: Text(item.name),
-                    subtitle: Text('${item.quantity} ${item.unit}'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${item.quantity} ${item.unit}'),
+                        if (item.expirationDate != null)
+                          Text(
+                            'Expires: ${item.expirationDate!.day}/${item.expirationDate!.month}/${item.expirationDate!.year}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: item.expirationDate!.isBefore(DateTime.now())
+                                  ? Colors.red
+                                  : Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
                       onPressed: () {
