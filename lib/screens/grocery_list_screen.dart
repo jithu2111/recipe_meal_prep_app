@@ -5,15 +5,11 @@ import '../models/pantry_item.dart';
 import '../utils/constants.dart';
 import '../services/storage_service.dart';
 import '../utils/ingredient_parser.dart';
+import '../utils/ingredient_matcher.dart';
 import '../data/sample_recipes.dart';
 
 class GroceryListScreen extends StatefulWidget {
-  final List<PantryItem> pantryItems;
-
-  const GroceryListScreen({
-    super.key,
-    this.pantryItems = const [],
-  });
+  const GroceryListScreen({super.key});
 
   @override
   State<GroceryListScreen> createState() => _GroceryListScreenState();
@@ -21,6 +17,7 @@ class GroceryListScreen extends StatefulWidget {
 
 class _GroceryListScreenState extends State<GroceryListScreen> {
   final List<GroceryItem> _groceryItems = [];
+  final List<PantryItem> _pantryItems = [];
   final _uuid = const Uuid();
   final _storage = StorageService();
 
@@ -28,6 +25,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   void initState() {
     super.initState();
     _loadGroceryItems();
+    _loadPantryItems();
   }
 
   Future<void> _loadGroceryItems() async {
@@ -37,10 +35,17 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     });
   }
 
+  Future<void> _loadPantryItems() async {
+    final items = await _storage.getPantryItems();
+    setState(() {
+      _pantryItems.addAll(items);
+    });
+  }
+
 
   // Check if an item is already in pantry
   bool _isInPantry(String itemName) {
-    return widget.pantryItems.any(
+    return _pantryItems.any(
       (pantryItem) => pantryItem.name.toLowerCase() == itemName.toLowerCase(),
     );
   }
@@ -222,8 +227,22 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
 
   void _showIngredientPreviewDialog(List<ParsedIngredient> ingredients) {
     final Map<ParsedIngredient, bool> selectedItems = {};
+    final Map<ParsedIngredient, ParsedIngredient> modifiedIngredients = {};
+
     for (var ingredient in ingredients) {
       selectedItems[ingredient] = true; // All selected by default
+      modifiedIngredients[ingredient] = ingredient; // Track modifications
+    }
+
+    void addIngredientsWithModifications() async {
+      // Get the modified versions of selected ingredients
+      final selectedModified = selectedItems.entries
+          .where((entry) => entry.value)
+          .map((entry) => modifiedIngredients[entry.key]!)
+          .toList();
+
+      Navigator.pop(context);
+      await _addSelectedIngredients(selectedModified);
     }
 
     showDialog(
@@ -283,9 +302,24 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                       itemCount: ingredients.length,
                       itemBuilder: (context, index) {
                         final ingredient = ingredients[index];
-                        final isInPantry = _isInPantry(ingredient.name);
+                        final currentIngredient = modifiedIngredients[ingredient]!;
+
+                        // Use smart matching to find pantry item
+                        final matchingPantryItem = IngredientMatcher.findMatchingPantryItem(
+                          currentIngredient.name,
+                          _pantryItems,
+                        );
+
+                        // Check quantity if pantry item found
+                        final quantityCheck = IngredientMatcher.checkQuantity(
+                          neededQuantity: currentIngredient.quantity,
+                          neededUnit: currentIngredient.unit,
+                          pantryItem: matchingPantryItem,
+                        );
+
                         final existingGroceryItem = _groceryItems.firstWhere(
-                          (item) => item.name.toLowerCase() == ingredient.name.toLowerCase(),
+                          (item) => IngredientMatcher.normalizeIngredientName(item.name) ==
+                                   IngredientMatcher.normalizeIngredientName(ingredient.name),
                           orElse: () => GroceryItem(
                             id: '',
                             name: '',
@@ -305,19 +339,42 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                 selectedItems[ingredient] = value ?? false;
                               });
                             },
-                            title: Text(
-                              ingredient.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    currentIngredient.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 18),
+                                  color: Theme.of(context).colorScheme.primary,
+                                  onPressed: () {
+                                    _showEditQuantityDialog(
+                                      context,
+                                      currentIngredient,
+                                      (updated) {
+                                        setState(() {
+                                          modifiedIngredients[ingredient] = updated;
+                                        });
+                                      },
+                                    );
+                                  },
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${ingredient.quantity} ${ingredient.unit}',
+                                  '${currentIngredient.quantity} ${currentIngredient.unit}',
                                   style: TextStyle(
                                     fontSize: 14,
                                     color: Colors.grey[700],
@@ -337,26 +394,44 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                     );
                                   }).toList(),
                                 ),
-                                if (isInPantry || isInGroceryList) ...[
+                                if (matchingPantryItem != null || isInGroceryList) ...[
                                   const SizedBox(height: 4),
-                                  if (isInPantry)
+                                  if (matchingPantryItem != null)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange[100],
+                                        color: quantityCheck['hasEnough'] == true
+                                            ? Colors.green[100]
+                                            : Colors.orange[100],
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.warning_amber, size: 14, color: Colors.orange[800]),
+                                          Icon(
+                                            quantityCheck['hasEnough'] == true
+                                                ? Icons.check_circle
+                                                : Icons.warning_amber,
+                                            size: 14,
+                                            color: quantityCheck['hasEnough'] == true
+                                                ? Colors.green[800]
+                                                : Colors.orange[800],
+                                          ),
                                           const SizedBox(width: 4),
-                                          Text(
-                                            'Already in pantry',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.orange[800],
-                                              fontWeight: FontWeight.bold,
+                                          Flexible(
+                                            child: Text(
+                                              quantityCheck['hasEnough'] == true
+                                                  ? 'In pantry: ${quantityCheck['pantryQty']} ${matchingPantryItem.unit}'
+                                                  : quantityCheck['unitMismatch'] == true
+                                                      ? 'In pantry: ${quantityCheck['pantryQty']} ${quantityCheck['pantryUnit']} (Need ${quantityCheck['needed']} ${quantityCheck['neededUnit']})'
+                                                      : 'In pantry: ${quantityCheck['pantryQty']} ${matchingPantryItem.unit} (Need ${quantityCheck['remaining']} more)',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: quantityCheck['hasEnough'] == true
+                                                    ? Colors.green[800]
+                                                    : Colors.orange[800],
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -365,7 +440,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                   if (isInGroceryList)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      margin: EdgeInsets.only(top: isInPantry ? 4 : 0),
+                                      margin: EdgeInsets.only(top: matchingPantryItem != null ? 4 : 0),
                                       decoration: BoxDecoration(
                                         color: Colors.blue[100],
                                         borderRadius: BorderRadius.circular(4),
@@ -410,17 +485,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                         ),
                         const SizedBox(width: 12),
                         ElevatedButton.icon(
-                          onPressed: selectedCount > 0
-                              ? () async {
-                                  Navigator.pop(context);
-                                  await _addSelectedIngredients(
-                                    selectedItems.entries
-                                        .where((entry) => entry.value)
-                                        .map((entry) => entry.key)
-                                        .toList(),
-                                  );
-                                }
-                              : null,
+                          onPressed: selectedCount > 0 ? addIngredientsWithModifications : null,
                           icon: const Icon(Icons.add_shopping_cart),
                           label: Text('Add $selectedCount Items'),
                         ),
@@ -432,6 +497,66 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showEditQuantityDialog(
+    BuildContext context,
+    ParsedIngredient ingredient,
+    Function(ParsedIngredient) onUpdate,
+  ) {
+    final quantityController = TextEditingController(
+      text: ingredient.quantity.toString(),
+    );
+    final unitController = TextEditingController(text: ingredient.unit);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Edit ${ingredient.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: quantityController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Quantity',
+                hintText: 'e.g., 2, 1.5',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: unitController,
+              decoration: const InputDecoration(
+                labelText: 'Unit',
+                hintText: 'e.g., kg, L, pieces',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newQuantity = double.tryParse(quantityController.text) ?? ingredient.quantity;
+              final newUnit = unitController.text.isNotEmpty ? unitController.text : ingredient.unit;
+
+              final updated = ingredient.copyWith(
+                quantity: newQuantity,
+                unit: newUnit,
+              );
+
+              onUpdate(updated);
+              Navigator.pop(dialogContext);
+            },
+            child: const Text('Save'),
+          ),
+        ],
       ),
     );
   }
