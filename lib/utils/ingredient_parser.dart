@@ -168,13 +168,15 @@ class IngredientParser {
       final key = '${ingredient.name.toLowerCase()}_${ingredient.unit}';
 
       if (merged.containsKey(key)) {
-        // Add quantities together
+        // Add quantities together and merge recipe names
         final existing = merged[key]!;
+        final combinedRecipes = [...existing.recipeNames, ...ingredient.recipeNames];
         merged[key] = ParsedIngredient(
           name: existing.name,
           quantity: existing.quantity + ingredient.quantity,
           unit: existing.unit,
           category: existing.category,
+          recipeNames: combinedRecipes,
         );
       } else {
         merged[key] = ingredient;
@@ -191,13 +193,31 @@ class ParsedIngredient {
   final double quantity;
   final String unit;
   final String category;
+  final List<String> recipeNames; // Track which recipes use this ingredient
 
   ParsedIngredient({
     required this.name,
     required this.quantity,
     required this.unit,
     required this.category,
+    this.recipeNames = const [],
   });
+
+  ParsedIngredient copyWith({
+    String? name,
+    double? quantity,
+    String? unit,
+    String? category,
+    List<String>? recipeNames,
+  }) {
+    return ParsedIngredient(
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+      unit: unit ?? this.unit,
+      category: category ?? this.category,
+      recipeNames: recipeNames ?? this.recipeNames,
+    );
+  }
 
   @override
   String toString() {

@@ -164,21 +164,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
   }
 
   Future<void> _generateFromMealPlan() async {
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
-    );
-
     try {
       // Get all meal plans
       final mealPlans = await _storage.getMealPlans();
 
       if (mealPlans.isEmpty) {
-        Navigator.pop(context); // Close loading dialog
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No meal plans found. Add recipes to your meal planner first!'),
@@ -191,7 +181,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
       // Get all recipes
       final allRecipes = SampleRecipes.getRecipes();
 
-      // Collect all ingredients from meal plans
+      // Collect all ingredients from meal plans with recipe names
       final List<ParsedIngredient> parsedIngredients = [];
 
       for (var mealPlan in mealPlans) {
@@ -203,38 +193,253 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         // Parse each ingredient in the recipe
         for (var ingredientString in recipe.ingredients) {
           final parsed = IngredientParser.parseIngredient(ingredientString);
-          parsedIngredients.add(parsed);
+          // Add recipe name to the parsed ingredient
+          final withRecipe = ParsedIngredient(
+            name: parsed.name,
+            quantity: parsed.quantity,
+            unit: parsed.unit,
+            category: parsed.category,
+            recipeNames: [recipe.title],
+          );
+          parsedIngredients.add(withRecipe);
         }
       }
 
-      // Merge duplicate ingredients
+      // Merge duplicate ingredients (will combine recipe names)
       final mergedIngredients = IngredientParser.mergeDuplicates(parsedIngredients);
 
-      // Filter out items already in pantry
-      final filteredIngredients = mergedIngredients.where((ingredient) {
-        return !_isInPantry(ingredient.name);
-      }).toList();
+      // Show preview dialog
+      _showIngredientPreviewDialog(mergedIngredients);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading meal plan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
-      // Filter out items already in grocery list
-      final newIngredients = filteredIngredients.where((ingredient) {
-        return !_groceryItems.any(
-          (existing) => existing.name.toLowerCase() == ingredient.name.toLowerCase(),
-        );
-      }).toList();
+  void _showIngredientPreviewDialog(List<ParsedIngredient> ingredients) {
+    final Map<ParsedIngredient, bool> selectedItems = {};
+    for (var ingredient in ingredients) {
+      selectedItems[ingredient] = true; // All selected by default
+    }
 
-      if (newIngredients.isEmpty) {
-        Navigator.pop(context); // Close loading dialog
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('All ingredients are already in your grocery list or pantry!'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-        return;
-      }
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final selectedCount = selectedItems.values.where((v) => v).length;
 
-      // Convert to GroceryItem and add to list
-      final newGroceryItems = newIngredients.map((ingredient) {
+          return Dialog(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+              child: Column(
+                children: [
+                  // Header
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(4),
+                        topRight: Radius.circular(4),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shopping_basket, color: Colors.white),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Ingredients from Meal Plan',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                '$selectedCount of ${ingredients.length} selected',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Ingredient List
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(8),
+                      itemCount: ingredients.length,
+                      itemBuilder: (context, index) {
+                        final ingredient = ingredients[index];
+                        final isInPantry = _isInPantry(ingredient.name);
+                        final existingGroceryItem = _groceryItems.firstWhere(
+                          (item) => item.name.toLowerCase() == ingredient.name.toLowerCase(),
+                          orElse: () => GroceryItem(
+                            id: '',
+                            name: '',
+                            quantity: 0,
+                            unit: '',
+                            category: '',
+                          ),
+                        );
+                        final isInGroceryList = existingGroceryItem.name.isNotEmpty;
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: CheckboxListTile(
+                            value: selectedItems[ingredient],
+                            onChanged: (value) {
+                              setState(() {
+                                selectedItems[ingredient] = value ?? false;
+                              });
+                            },
+                            title: Text(
+                              ingredient.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${ingredient.quantity} ${ingredient.unit}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Wrap(
+                                  spacing: 4,
+                                  children: ingredient.recipeNames.map((recipeName) {
+                                    return Chip(
+                                      label: Text(
+                                        recipeName,
+                                        style: const TextStyle(fontSize: 10),
+                                      ),
+                                      padding: EdgeInsets.zero,
+                                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    );
+                                  }).toList(),
+                                ),
+                                if (isInPantry || isInGroceryList) ...[
+                                  const SizedBox(height: 4),
+                                  if (isInPantry)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: Colors.orange[100],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.warning_amber, size: 14, color: Colors.orange[800]),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Already in pantry',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.orange[800],
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  if (isInGroceryList)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      margin: EdgeInsets.only(top: isInPantry ? 4 : 0),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue[100],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.info, size: 14, color: Colors.blue[800]),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Already in list: ${existingGroceryItem.quantity} ${existingGroceryItem.unit}',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.blue[800],
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Action Buttons
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      border: Border(top: BorderSide(color: Colors.grey[300]!)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: selectedCount > 0
+                              ? () async {
+                                  Navigator.pop(context);
+                                  await _addSelectedIngredients(
+                                    selectedItems.entries
+                                        .where((entry) => entry.value)
+                                        .map((entry) => entry.key)
+                                        .toList(),
+                                  );
+                                }
+                              : null,
+                          icon: const Icon(Icons.add_shopping_cart),
+                          label: Text('Add $selectedCount Items'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _addSelectedIngredients(List<ParsedIngredient> selectedIngredients) async {
+    try {
+      // Convert to GroceryItem
+      final newGroceryItems = selectedIngredients.map((ingredient) {
         return GroceryItem(
           id: _uuid.v4(),
           name: ingredient.name,
@@ -252,21 +457,18 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         _groceryItems.addAll(newGroceryItems);
       });
 
-      Navigator.pop(context); // Close loading dialog
-
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Added ${newGroceryItems.length} items from your meal plan!'),
+          content: Text('Added ${newGroceryItems.length} items to your grocery list!'),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
       );
     } catch (e) {
-      Navigator.pop(context); // Close loading dialog
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error generating grocery list: $e'),
+          content: Text('Error adding items: $e'),
           backgroundColor: Colors.red,
         ),
       );
