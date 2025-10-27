@@ -5,6 +5,7 @@ import '../models/pantry_item.dart';
 import '../utils/constants.dart';
 import '../services/storage_service.dart';
 import '../utils/ingredient_parser.dart';
+import '../utils/ingredient_matcher.dart';
 import '../data/sample_recipes.dart';
 
 class GroceryListScreen extends StatefulWidget {
@@ -283,9 +284,23 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                       itemCount: ingredients.length,
                       itemBuilder: (context, index) {
                         final ingredient = ingredients[index];
-                        final isInPantry = _isInPantry(ingredient.name);
+
+                        // Use smart matching to find pantry item
+                        final matchingPantryItem = IngredientMatcher.findMatchingPantryItem(
+                          ingredient.name,
+                          widget.pantryItems,
+                        );
+
+                        // Check quantity if pantry item found
+                        final quantityCheck = IngredientMatcher.checkQuantity(
+                          neededQuantity: ingredient.quantity,
+                          neededUnit: ingredient.unit,
+                          pantryItem: matchingPantryItem,
+                        );
+
                         final existingGroceryItem = _groceryItems.firstWhere(
-                          (item) => item.name.toLowerCase() == ingredient.name.toLowerCase(),
+                          (item) => IngredientMatcher.normalizeIngredientName(item.name) ==
+                                   IngredientMatcher.normalizeIngredientName(ingredient.name),
                           orElse: () => GroceryItem(
                             id: '',
                             name: '',
@@ -337,26 +352,44 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                     );
                                   }).toList(),
                                 ),
-                                if (isInPantry || isInGroceryList) ...[
+                                if (matchingPantryItem != null || isInGroceryList) ...[
                                   const SizedBox(height: 4),
-                                  if (isInPantry)
+                                  if (matchingPantryItem != null)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: Colors.orange[100],
+                                        color: quantityCheck['hasEnough'] == true
+                                            ? Colors.green[100]
+                                            : Colors.orange[100],
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(Icons.warning_amber, size: 14, color: Colors.orange[800]),
+                                          Icon(
+                                            quantityCheck['hasEnough'] == true
+                                                ? Icons.check_circle
+                                                : Icons.warning_amber,
+                                            size: 14,
+                                            color: quantityCheck['hasEnough'] == true
+                                                ? Colors.green[800]
+                                                : Colors.orange[800],
+                                          ),
                                           const SizedBox(width: 4),
-                                          Text(
-                                            'Already in pantry',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.orange[800],
-                                              fontWeight: FontWeight.bold,
+                                          Flexible(
+                                            child: Text(
+                                              quantityCheck['hasEnough'] == true
+                                                  ? 'In pantry: ${quantityCheck['pantryQty']} ${matchingPantryItem.unit}'
+                                                  : quantityCheck['unitMismatch'] == true
+                                                      ? 'In pantry: ${quantityCheck['pantryQty']} ${quantityCheck['pantryUnit']} (Need ${quantityCheck['needed']} ${quantityCheck['neededUnit']})'
+                                                      : 'In pantry: ${quantityCheck['pantryQty']} ${matchingPantryItem.unit} (Need ${quantityCheck['remaining']} more)',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: quantityCheck['hasEnough'] == true
+                                                    ? Colors.green[800]
+                                                    : Colors.orange[800],
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -365,7 +398,7 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                                   if (isInGroceryList)
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      margin: EdgeInsets.only(top: isInPantry ? 4 : 0),
+                                      margin: EdgeInsets.only(top: matchingPantryItem != null ? 4 : 0),
                                       decoration: BoxDecoration(
                                         color: Colors.blue[100],
                                         borderRadius: BorderRadius.circular(4),
