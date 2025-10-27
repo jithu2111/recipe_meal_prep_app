@@ -23,7 +23,6 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
   final _shareService = ShareService();
   final _searchController = TextEditingController();
   String _searchQuery = '';
-  bool _searchByIngredient = false; // false = by name, true = by ingredient
 
   @override
   void dispose() {
@@ -51,20 +50,21 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
 
   List<dynamic> _getFilteredRecipes(List<dynamic> recipes) {
     return recipes.where((recipe) {
-      // Filter by search query
+      // Filter by search query (searches both name AND ingredients)
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
-        if (_searchByIngredient) {
-          // Search by ingredient
-          bool hasIngredient = recipe.ingredients.any(
-            (ingredient) => ingredient.toLowerCase().contains(query),
-          );
-          if (!hasIngredient) return false;
-        } else {
-          // Search by recipe name
-          if (!recipe.title.toLowerCase().contains(query)) {
-            return false;
-          }
+
+        // Check if recipe name contains the query
+        final matchesName = recipe.title.toLowerCase().contains(query);
+
+        // Check if any ingredient contains the query
+        final matchesIngredient = recipe.ingredients.any(
+          (ingredient) => ingredient.toString().toLowerCase().contains(query),
+        );
+
+        // Return true if matches either name OR ingredient
+        if (!matchesName && !matchesIngredient) {
+          return false;
         }
       }
 
@@ -178,86 +178,33 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             color: Theme.of(context).colorScheme.surface,
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: _searchByIngredient
-                        ? 'Search by ingredient (e.g., chicken, tomato)'
-                        : 'Search by recipe name...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () {
-                              setState(() {
-                                _searchController.clear();
-                                _searchQuery = '';
-                              });
-                            },
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    filled: true,
-                    fillColor: Theme.of(context).colorScheme.background,
-                  ),
-                  onChanged: (value) {
-                    setState(() {
-                      _searchQuery = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
-                // Search mode toggle
-                Row(
-                  children: [
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.restaurant_menu, size: 16),
-                            SizedBox(width: 4),
-                            Text('By Name'),
-                          ],
-                        ),
-                        selected: !_searchByIngredient,
-                        onSelected: (selected) {
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search recipes by name or ingredient...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
                           setState(() {
-                            _searchByIngredient = false;
                             _searchController.clear();
                             _searchQuery = '';
                           });
                         },
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ChoiceChip(
-                        label: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.egg_outlined, size: 16),
-                            SizedBox(width: 4),
-                            Text('By Ingredient'),
-                          ],
-                        ),
-                        selected: _searchByIngredient,
-                        onSelected: (selected) {
-                          setState(() {
-                            _searchByIngredient = true;
-                            _searchController.clear();
-                            _searchQuery = '';
-                          });
-                        },
-                      ),
-                    ),
-                  ],
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.background,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
             ),
           ),
 

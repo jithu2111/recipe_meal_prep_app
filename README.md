@@ -61,18 +61,18 @@ flutter run
 
 ### Milestone 1
 - [x] Set up project structure and dependencies
-- [ ] Design and build recipe list UI
-- [ ] Implement filter functionality
-- [ ] Create recipe detail screen
-- [ ] Add navigation
+- [x] Design and build recipe list UI
+- [x] Implement filter functionality
+- [x] Create recipe detail screen
+- [x] Add navigation
 
 ### Milestone 2
-- [ ] Implement meal planner
-- [ ] Add grocery list generation
-- [ ] Integrate local storage
-- [ ] Implement Smart Pantry Tracker
-- [ ] Add share recipe functionality
-- [ ] UI polish and testing
+- [x] Implement meal planner
+- [x] Add grocery list generation
+- [x] Integrate local storage
+- [x] Implement Smart Pantry Tracker
+- [x] Add share recipe functionality
+- [x] UI polish and testing
 
 ## Models
 
