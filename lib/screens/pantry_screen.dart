@@ -183,10 +183,30 @@ class _PantryScreenState extends State<PantryScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddItemDialog,
-        heroTag: 'pantry_fab',
-        child: const Icon(Icons.add),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: () {
+              // TODO: Implement Ask AI functionality
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Ask AI feature coming soon!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            heroTag: 'ask_ai_fab',
+            label: const Text('Ask AI'),
+            icon: const Icon(Icons.psychology),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton(
+            onPressed: _showAddItemDialog,
+            heroTag: 'pantry_fab',
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
       body: _pantryItems.isEmpty
           ? Center(
