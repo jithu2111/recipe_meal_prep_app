@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'utils/app_theme.dart';
 import 'screens/home_screen.dart';
 import 'services/storage_service.dart';
 import 'services/connectivity_service.dart';
 import 'widgets/offline_banner.dart';
+import 'providers/favorites_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,14 +19,17 @@ class RecipeMealPrepApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Recipe & Meal Planner',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.light,
-      home: const OfflineBanner(
-        child: HomeScreen(),
+    return ChangeNotifierProvider(
+      create: (context) => FavoritesProvider()..loadFavorites(),
+      child: MaterialApp(
+        title: 'Recipe & Meal Planner',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.light,
+        home: const OfflineBanner(
+          child: HomeScreen(),
+        ),
       ),
     );
   }

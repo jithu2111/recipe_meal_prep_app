@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../data/sample_recipes.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/filter_panel.dart';
 import 'recipe_detail_screen.dart';
-import '../services/storage_service.dart';
 import '../services/share_service.dart';
+import '../providers/favorites_provider.dart';
 
 class RecipeListScreen extends StatefulWidget {
   const RecipeListScreen({super.key});
@@ -14,56 +15,11 @@ class RecipeListScreen extends StatefulWidget {
 }
 
 class _RecipeListScreenState extends State<RecipeListScreen> {
-  final Set<String> _favorites = {};
   final List<String> _selectedDietaryTags = [];
   String? _selectedCuisine;
   String? _selectedCookingTime;
   bool _showFilters = false;
-  final _storage = StorageService();
   final _shareService = ShareService();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFavorites();
-  }
-
-  Future<void> _loadFavorites() async {
-    final favorites = await _storage.getFavorites();
-    setState(() {
-      _favorites.addAll(favorites);
-    });
-  }
-
-  Future<void> _toggleFavorite(String recipeId) async {
-    final isFavorite = _favorites.contains(recipeId);
-
-    setState(() {
-      if (isFavorite) {
-        _favorites.remove(recipeId);
-      } else {
-        _favorites.add(recipeId);
-      }
-    });
-
-    if (isFavorite) {
-      await _storage.removeFavorite(recipeId);
-    } else {
-      await _storage.addFavorite(recipeId);
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isFavorite ? 'Removed from favorites' : 'Added to favorites',
-          ),
-          duration: const Duration(seconds: 1),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   void _toggleDietaryTag(String tag) {
     setState(() {
@@ -264,28 +220,47 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: recipes.length,
-                    itemBuilder: (context, index) {
-                      final recipe = recipes[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: RecipeCard(
-                          recipe: recipe,
-                          isFavorite: _favorites.contains(recipe.id),
-                          canCookNow: false, // Will be implemented with pantry integration
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => RecipeDetailScreen(recipe: recipe),
-                              ),
-                            );
-                          },
-                          onFavorite: () => _toggleFavorite(recipe.id),
-                          onShare: () => _shareService.shareRecipe(recipe),
-                        ),
+                : Consumer<FavoritesProvider>(
+                    builder: (context, favoritesProvider, child) {
+                      return ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: recipes.length,
+                        itemBuilder: (context, index) {
+                          final recipe = recipes[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: RecipeCard(
+                              recipe: recipe,
+                              isFavorite: favoritesProvider.isFavorite(recipe.id),
+                              canCookNow: false, // Will be implemented with pantry integration
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RecipeDetailScreen(recipe: recipe),
+                                  ),
+                                );
+                              },
+                              onFavorite: () async {
+                                await favoritesProvider.toggleFavorite(recipe.id);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        favoritesProvider.isFavorite(recipe.id)
+                                            ? 'Added to favorites'
+                                            : 'Removed from favorites',
+                                      ),
+                                      duration: const Duration(seconds: 1),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              },
+                              onShare: () => _shareService.shareRecipe(recipe),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
