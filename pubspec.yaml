@@ -68,6 +68,9 @@ dependencies:
   # URL launcher for social media
   url_launcher: ^6.2.2
 
+  # Markdown rendering
+  flutter_markdown: ^0.7.4+1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

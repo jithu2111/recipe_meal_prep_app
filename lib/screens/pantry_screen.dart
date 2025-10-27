@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/pantry_item.dart';
 import '../services/storage_service.dart';
 
@@ -85,8 +86,11 @@ class _PantryScreenState extends State<PantryScreen> {
       }).toList();
 
       // Send request to AI API
+      // For Android Emulator: use 10.0.2.2
+      // For iOS Simulator: use localhost or 127.0.0.1
+      // For Physical Device: use your computer's IP address (e.g., 192.168.1.x)
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/generate-recipe'),
+        Uri.parse('http://10.0.2.2:8000/generate-recipe'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'ingredients': ingredients}),
       );
@@ -137,33 +141,56 @@ class _PantryScreenState extends State<PantryScreen> {
             ),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                message,
-                style: const TextStyle(fontSize: 16),
-              ),
-              if (suggestions != null && suggestions.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 8),
-                const Text(
-                  'Suggestions:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MarkdownBody(
+                  data: message,
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 16),
+                    h1: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    h2: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    h3: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    listBullet: const TextStyle(fontSize: 16),
+                    code: TextStyle(
+                      backgroundColor: Colors.grey[200],
+                      fontFamily: 'monospace',
+                    ),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  suggestions,
-                  style: const TextStyle(fontSize: 14),
-                ),
+                if (suggestions != null && suggestions.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Suggestions:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MarkdownBody(
+                    data: suggestions,
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontSize: 14),
+                      h1: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      h2: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      h3: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      listBullet: const TextStyle(fontSize: 14),
+                      code: TextStyle(
+                        backgroundColor: Colors.grey[200],
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         actions: [
