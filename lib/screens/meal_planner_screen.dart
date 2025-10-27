@@ -12,12 +12,15 @@ class MealPlannerScreen extends StatefulWidget {
   State<MealPlannerScreen> createState() => _MealPlannerScreenState();
 }
 
-class _MealPlannerScreenState extends State<MealPlannerScreen> {
+class _MealPlannerScreenState extends State<MealPlannerScreen> with AutomaticKeepAliveClientMixin {
   final daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   final Map<String, Map<String, Recipe?>> _mealPlan = {};
   final List<MealPlan> _mealPlans = [];
   final _storage = StorageService();
   final _uuid = const Uuid();
+
+  @override
+  bool get wantKeepAlive => false; // Don't keep alive to force refresh
 
   @override
   void initState() {
@@ -33,28 +36,46 @@ class _MealPlannerScreenState extends State<MealPlannerScreen> {
     _loadMealPlans();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload when screen becomes visible
+    _loadMealPlans();
+  }
+
   Future<void> _loadMealPlans() async {
     final savedPlans = await _storage.getMealPlans();
     final recipes = SampleRecipes.getRecipes();
 
-    setState(() {
-      _mealPlans.clear();
-      _mealPlans.addAll(savedPlans);
+    if (mounted) {
+      setState(() {
+        _mealPlans.clear();
+        _mealPlans.addAll(savedPlans);
 
-      // Reconstruct meal plan from saved data
-      for (var plan in savedPlans) {
-        final recipe = recipes.firstWhere(
-          (r) => r.id == plan.recipeId,
-          orElse: () => recipes.first,
-        );
-        final dayIndex = plan.date.weekday - 1; // 1 = Monday, 7 = Sunday
-        if (dayIndex >= 0 && dayIndex < daysOfWeek.length) {
-          final day = daysOfWeek[dayIndex];
-          final mealType = _getMealTypeString(plan.mealType);
-          _mealPlan[day]![mealType] = recipe;
+        // Clear existing meal plan first
+        for (var day in daysOfWeek) {
+          _mealPlan[day] = {
+            'Breakfast': null,
+            'Lunch': null,
+            'Dinner': null,
+          };
         }
-      }
-    });
+
+        // Reconstruct meal plan from saved data
+        for (var plan in savedPlans) {
+          final recipe = recipes.firstWhere(
+            (r) => r.id == plan.recipeId,
+            orElse: () => recipes.first,
+          );
+          final dayIndex = plan.date.weekday - 1; // 1 = Monday, 7 = Sunday
+          if (dayIndex >= 0 && dayIndex < daysOfWeek.length) {
+            final day = daysOfWeek[dayIndex];
+            final mealType = _getMealTypeString(plan.mealType);
+            _mealPlan[day]![mealType] = recipe;
+          }
+        }
+      });
+    }
   }
 
 
