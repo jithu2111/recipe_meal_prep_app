@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../models/recipe.dart';
+import '../models/meal_plan.dart';
 import '../services/share_service.dart';
+import '../services/storage_service.dart';
 import '../providers/favorites_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
@@ -19,7 +22,83 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   final _shareService = ShareService();
+  final _storage = StorageService();
+  final _uuid = const Uuid();
   final GlobalKey _screenshotKey = GlobalKey();
+
+  final List<String> daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  Future<void> _showAddToMealPlanDialog() async {
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _MealPlanSelectionDialog(),
+    );
+
+    if (result != null) {
+      final day = result['day'] as String;
+      final mealType = result['mealType'] as MealType;
+
+      try {
+        // Calculate the date for the selected day
+        final date = _getDateForDay(day);
+
+        // Remove existing plan for this day/meal if any
+        await _storage.deleteMealPlanByDateAndType(date, mealType);
+
+        // Create and save new meal plan
+        final newPlan = MealPlan(
+          id: _uuid.v4(),
+          date: date,
+          mealType: mealType,
+          recipeId: widget.recipe.id,
+        );
+
+        await _storage.insertMealPlan(newPlan);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added to ${_getMealTypeString(mealType)} on $day'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to add to meal plan'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  String _getMealTypeString(MealType type) {
+    switch (type) {
+      case MealType.breakfast:
+        return 'Breakfast';
+      case MealType.lunch:
+        return 'Lunch';
+      case MealType.dinner:
+        return 'Dinner';
+    }
+  }
+
+  int _getDayIndex(String day) {
+    return daysOfWeek.indexOf(day);
+  }
+
+  DateTime _getDateForDay(String day) {
+    final now = DateTime.now();
+    final currentWeekday = now.weekday; // 1 = Monday, 7 = Sunday
+    final dayIndex = _getDayIndex(day);
+    final difference = dayIndex - (currentWeekday - 1);
+    return now.add(Duration(days: difference));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -325,8 +404,136 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ],
         ),
         ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _showAddToMealPlanDialog,
+          icon: const Icon(Icons.calendar_today),
+          label: const Text('Add to Meal Plan'),
+          heroTag: 'add_to_meal_plan_fab',
+        ),
       );
     },
+    );
+  }
+}
+
+// Dialog for selecting day and meal type
+class _MealPlanSelectionDialog extends StatefulWidget {
+  @override
+  State<_MealPlanSelectionDialog> createState() => _MealPlanSelectionDialogState();
+}
+
+class _MealPlanSelectionDialogState extends State<_MealPlanSelectionDialog> {
+  final List<String> daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  String? selectedDay;
+  MealType? selectedMealType;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add to Meal Plan'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Select Day:',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: daysOfWeek.map((day) {
+              return ChoiceChip(
+                label: Text(day),
+                selected: selectedDay == day,
+                onSelected: (selected) {
+                  setState(() {
+                    selectedDay = selected ? day : null;
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Select Meal:',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Column(
+            children: [
+              RadioListTile<MealType>(
+                title: const Row(
+                  children: [
+                    Icon(Icons.wb_sunny_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Breakfast'),
+                  ],
+                ),
+                value: MealType.breakfast,
+                groupValue: selectedMealType,
+                onChanged: (value) {
+                  setState(() {
+                    selectedMealType = value;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+              RadioListTile<MealType>(
+                title: const Row(
+                  children: [
+                    Icon(Icons.wb_sunny, size: 20),
+                    SizedBox(width: 8),
+                    Text('Lunch'),
+                  ],
+                ),
+                value: MealType.lunch,
+                groupValue: selectedMealType,
+                onChanged: (value) {
+                  setState(() {
+                    selectedMealType = value;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+              RadioListTile<MealType>(
+                title: const Row(
+                  children: [
+                    Icon(Icons.nights_stay_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text('Dinner'),
+                  ],
+                ),
+                value: MealType.dinner,
+                groupValue: selectedMealType,
+                onChanged: (value) {
+                  setState(() {
+                    selectedMealType = value;
+                  });
+                },
+                contentPadding: EdgeInsets.zero,
+              ),
+            ],
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: selectedDay != null && selectedMealType != null
+              ? () {
+                  Navigator.pop(context, {
+                    'day': selectedDay,
+                    'mealType': selectedMealType,
+                  });
+                }
+              : null,
+          child: const Text('Add'),
+        ),
+      ],
     );
   }
 }
