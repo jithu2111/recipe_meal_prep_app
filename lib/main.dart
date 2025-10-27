@@ -6,6 +6,7 @@ import 'services/storage_service.dart';
 import 'services/connectivity_service.dart';
 import 'widgets/offline_banner.dart';
 import 'providers/favorites_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,17 +20,24 @@ class RecipeMealPrepApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => FavoritesProvider()..loadFavorites(),
-      child: MaterialApp(
-        title: 'Recipe & Meal Planner',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.light,
-        home: const OfflineBanner(
-          child: HomeScreen(),
-        ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => FavoritesProvider()..loadFavorites()),
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+      ],
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Recipe & Meal Planner',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: themeProvider.themeMode,
+            home: const OfflineBanner(
+              child: HomeScreen(),
+            ),
+          );
+        },
       ),
     );
   }

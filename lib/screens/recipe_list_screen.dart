@@ -4,6 +4,7 @@ import '../data/sample_recipes.dart';
 import '../widgets/recipe_card.dart';
 import '../widgets/filter_panel.dart';
 import 'recipe_detail_screen.dart';
+import 'settings_screen.dart';
 import '../services/share_service.dart';
 import '../providers/favorites_provider.dart';
 
@@ -90,6 +91,19 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
         title: const Text('Recipes'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
+          // Settings button
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SettingsScreen(),
+                ),
+              );
+            },
+            tooltip: 'Settings',
+          ),
           // Filter button with badge
           Stack(
             children: [
