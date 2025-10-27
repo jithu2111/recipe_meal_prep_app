@@ -11,6 +11,7 @@ class RecipeCard extends StatelessWidget {
   final bool isFavorite;
   final bool canCookNow;
   final bool showCacheStatus;
+  final String? heroTagPrefix;
 
   const RecipeCard({
     super.key,
@@ -21,6 +22,7 @@ class RecipeCard extends StatelessWidget {
     this.isFavorite = false,
     this.canCookNow = false,
     this.showCacheStatus = true,
+    this.heroTagPrefix,
   });
 
   @override
@@ -39,7 +41,7 @@ class RecipeCard extends StatelessWidget {
             Stack(
               children: [
                 Hero(
-                  tag: 'recipe-${recipe.id}',
+                  tag: '${heroTagPrefix ?? 'recipe'}-${recipe.id}',
                   child: CachedNetworkImage(
                     imageUrl: recipe.imageUrl,
                     height: 180,
