@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../models/pantry_item.dart';
 import '../services/storage_service.dart';
 
@@ -38,6 +41,166 @@ class _PantryScreenState extends State<PantryScreen> {
   // Get count of low stock items
   int _getLowStockCount() {
     return _pantryItems.where((item) => _isLowStock(item)).length;
+  }
+
+  Future<void> _askAI() async {
+    if (_pantryItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add some ingredients to your pantry first!'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Asking AI for recipe suggestions...'),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    try {
+      // Prepare ingredients data
+      final ingredients = _pantryItems.map((item) {
+        return {
+          'name': item.name,
+          'quantity': '${item.quantity} ${item.unit}',
+        };
+      }).toList();
+
+      // Send request to AI API
+      // For Android Emulator: use 10.0.2.2
+      // For iOS Simulator: use localhost or 127.0.0.1
+      // For Physical Device: use your computer's IP address (e.g., 192.168.1.x)
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:8000/generate-recipe'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'ingredients': ingredients}),
+      );
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _showAIResponseDialog(
+          data['message'] ?? 'No message received',
+          data['can_make_recipe'] ?? false,
+          data['suggestions'],
+        );
+      } else {
+        throw Exception('Failed to get AI response: ${response.statusCode}');
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      Navigator.of(context, rootNavigator: true).pop();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  void _showAIResponseDialog(String message, bool canMakeRecipe, String? suggestions) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              canMakeRecipe ? Icons.check_circle : Icons.info,
+              color: canMakeRecipe ? Colors.green : Colors.orange,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                canMakeRecipe ? 'Recipe Suggestion' : 'Need More Ingredients',
+                style: const TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MarkdownBody(
+                  data: message,
+                  styleSheet: MarkdownStyleSheet(
+                    p: const TextStyle(fontSize: 16),
+                    h1: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    h2: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    h3: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    listBullet: const TextStyle(fontSize: 16),
+                    code: TextStyle(
+                      backgroundColor: Colors.grey[200],
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+                if (suggestions != null && suggestions.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Divider(),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Suggestions:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  MarkdownBody(
+                    data: suggestions,
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontSize: 14),
+                      h1: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      h2: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      h3: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      listBullet: const TextStyle(fontSize: 14),
+                      code: TextStyle(
+                        backgroundColor: Colors.grey[200],
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddItemDialog() {
@@ -183,10 +346,22 @@ class _PantryScreenState extends State<PantryScreen> {
             ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showAddItemDialog,
-        heroTag: 'pantry_fab',
-        child: const Icon(Icons.add),
+      floatingActionButton: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            onPressed: _askAI,
+            heroTag: 'ask_ai_fab',
+            label: const Text('Ask AI'),
+            icon: const Icon(Icons.psychology),
+          ),
+          const SizedBox(width: 16),
+          FloatingActionButton(
+            onPressed: _showAddItemDialog,
+            heroTag: 'pantry_fab',
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
       body: _pantryItems.isEmpty
           ? Center(
