@@ -21,6 +21,14 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
   String? _selectedCookingTime;
   bool _showFilters = false;
   final _shareService = ShareService();
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _toggleDietaryTag(String tag) {
     setState(() {
@@ -42,6 +50,24 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
 
   List<dynamic> _getFilteredRecipes(List<dynamic> recipes) {
     return recipes.where((recipe) {
+      // Filter by search query (searches both name AND ingredients)
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+
+        // Check if recipe name contains the query
+        final matchesName = recipe.title.toLowerCase().contains(query);
+
+        // Check if any ingredient contains the query
+        final matchesIngredient = recipe.ingredients.any(
+          (ingredient) => ingredient.toString().toLowerCase().contains(query),
+        );
+
+        // Return true if matches either name OR ingredient
+        if (!matchesName && !matchesIngredient) {
+          return false;
+        }
+      }
+
       // Filter by dietary tags
       if (_selectedDietaryTags.isNotEmpty) {
         bool hasDietaryTag = _selectedDietaryTags.any(
@@ -148,6 +174,40 @@ class _RecipeListScreenState extends State<RecipeListScreen> {
       ),
       body: Column(
         children: [
+          // Search Bar
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: Theme.of(context).colorScheme.surface,
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search recipes by name or ingredient...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.background,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+
           // Filter Panel
           if (_showFilters)
             FilterPanel(
