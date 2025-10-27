@@ -91,6 +91,12 @@ class StorageService {
     await _dbHelper.deletePurchasedGroceryItems();
   }
 
+  Future<void> insertGroceryItems(List<GroceryItem> items) async {
+    for (var item in items) {
+      await _dbHelper.insertGroceryItem(item);
+    }
+  }
+
   // ==================== THEME (Still using SharedPreferences) ====================
 
   Future<String?> getThemeMode() async {

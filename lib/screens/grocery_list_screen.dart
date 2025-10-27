@@ -4,6 +4,8 @@ import '../models/grocery_item.dart';
 import '../models/pantry_item.dart';
 import '../utils/constants.dart';
 import '../services/storage_service.dart';
+import '../utils/ingredient_parser.dart';
+import '../data/sample_recipes.dart';
 
 class GroceryListScreen extends StatefulWidget {
   final List<PantryItem> pantryItems;
@@ -161,6 +163,116 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
     await _storage.updateGroceryItem(updatedItem);
   }
 
+  Future<void> _generateFromMealPlan() async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      // Get all meal plans
+      final mealPlans = await _storage.getMealPlans();
+
+      if (mealPlans.isEmpty) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No meal plans found. Add recipes to your meal planner first!'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      // Get all recipes
+      final allRecipes = SampleRecipes.getRecipes();
+
+      // Collect all ingredients from meal plans
+      final List<ParsedIngredient> parsedIngredients = [];
+
+      for (var mealPlan in mealPlans) {
+        final recipe = allRecipes.firstWhere(
+          (r) => r.id == mealPlan.recipeId,
+          orElse: () => allRecipes.first,
+        );
+
+        // Parse each ingredient in the recipe
+        for (var ingredientString in recipe.ingredients) {
+          final parsed = IngredientParser.parseIngredient(ingredientString);
+          parsedIngredients.add(parsed);
+        }
+      }
+
+      // Merge duplicate ingredients
+      final mergedIngredients = IngredientParser.mergeDuplicates(parsedIngredients);
+
+      // Filter out items already in pantry
+      final filteredIngredients = mergedIngredients.where((ingredient) {
+        return !_isInPantry(ingredient.name);
+      }).toList();
+
+      // Filter out items already in grocery list
+      final newIngredients = filteredIngredients.where((ingredient) {
+        return !_groceryItems.any(
+          (existing) => existing.name.toLowerCase() == ingredient.name.toLowerCase(),
+        );
+      }).toList();
+
+      if (newIngredients.isEmpty) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All ingredients are already in your grocery list or pantry!'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+        return;
+      }
+
+      // Convert to GroceryItem and add to list
+      final newGroceryItems = newIngredients.map((ingredient) {
+        return GroceryItem(
+          id: _uuid.v4(),
+          name: ingredient.name,
+          quantity: ingredient.quantity,
+          unit: ingredient.unit,
+          category: ingredient.category,
+        );
+      }).toList();
+
+      // Save to storage
+      await _storage.insertGroceryItems(newGroceryItems);
+
+      // Update UI
+      setState(() {
+        _groceryItems.addAll(newGroceryItems);
+      });
+
+      Navigator.pop(context); // Close loading dialog
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added ${newGroceryItems.length} items from your meal plan!'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      Navigator.pop(context); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating grocery list: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   // Group items by category
   Map<String, List<GroceryItem>> _groupByCategory() {
     final Map<String, List<GroceryItem>> grouped = {};
@@ -182,6 +294,11 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
         title: const Text('Grocery List'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'Generate from Meal Plan',
+            onPressed: _generateFromMealPlan,
+          ),
           if (_groceryItems.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep),
@@ -226,11 +343,30 @@ class _GroceryListScreenState extends State<GroceryListScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Add items you need to buy!',
+                    'Add items manually or tap the',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey[500],
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.auto_awesome,
+                        size: 16,
+                        color: Colors.grey[500],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'icon to generate from your meal plan',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
