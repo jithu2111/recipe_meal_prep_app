@@ -26,26 +26,40 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _loadFavorites() async {
-    setState(() {
-      _isLoading = true;
-    });
+    try {
+      setState(() {
+        _isLoading = true;
+      });
 
-    // Get favorite recipe IDs from storage
-    final favoriteIds = await _storage.getFavorites();
+      // Get favorite recipe IDs from storage
+      final favoriteIds = await _storage.getFavorites();
+      print('Loaded favorite IDs: $favoriteIds'); // Debug
 
-    // Get all recipes
-    final allRecipes = SampleRecipes.getRecipes();
+      // Get all recipes
+      final allRecipes = SampleRecipes.getRecipes();
+      print('Total recipes: ${allRecipes.length}'); // Debug
 
-    // Filter recipes that are in favorites
-    final favoriteRecipes = allRecipes
-        .where((recipe) => favoriteIds.contains(recipe.id))
-        .toList();
+      // Filter recipes that are in favorites
+      final favoriteRecipes = allRecipes
+          .where((recipe) => favoriteIds.contains(recipe.id))
+          .toList();
+      print('Filtered favorites: ${favoriteRecipes.length}'); // Debug
 
-    setState(() {
-      _favorites.clear();
-      _favorites.addAll(favoriteRecipes);
-      _isLoading = false;
-    });
+      if (mounted) {
+        setState(() {
+          _favorites.clear();
+          _favorites.addAll(favoriteRecipes);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading favorites: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _removeFavorite(Recipe recipe, int index) async {
@@ -151,6 +165,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               recipe: recipe,
                               isFavorite: true,
                               canCookNow: false, // Will be implemented with pantry integration
+                              heroTagPrefix: 'favorites',
                               onTap: () async {
                                 await Navigator.push(
                                   context,
